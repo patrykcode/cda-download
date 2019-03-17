@@ -7,36 +7,19 @@ use App\Http\Controllers\Crawler\Parser;
 class Cda extends HelperAbstract {
 
     public function __construct() {
-
-        $this->cookie_file = public_path('.temp/cookie.txt');
-        $this->save_path = public_path('.temp/');
-        $this->mkdir($this->save_path);
+        parent::__construct();
     }
 
-    public function run($link = 'https://www.cda.pl/video/268080968') {
+    public function index($link = '') {
 
         $url = $this->parseUrl($link);
 
-        $page = $this->getPage("https://ebd.cda.pl/620x386/" . $url['id'] . "?" . $url['query'] ?? 'wersja=480p', 'https://cda.pl', null, 1);
-
-        if ($page['result']["http_code"] == '200') {
-            $parse = new Parser($page['response']);
-            $quanlity = $parse->find('a[class="quality-btn"]');
-            $video = $parse->get();
-            return $video;
-        }
-    }
-
-    public function index($link) {
-
-        $url = $this->parseUrl($link);
-  
         $page = $this->getPage("https://ebd.cda.pl/620x386/" . $url['id'] . "?" . ($url['query'] ?? 'wersja=480p'), 'https://cda.pl', null, 1);
 
         if ($page['result']["http_code"] == '200') {
             $parse = new Parser($page['response']);
-            $video = $parse->get();
-            $quality = $parse->find('a[class="quality-btn"]');
+            $video = $parse->getData();
+            $quality = $parse->getQuality();
             return response()->json(compact('video', 'quality'));
         } else {
             $error = true;
@@ -100,21 +83,27 @@ class Cda extends HelperAbstract {
 
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
 
-                $response = curl_exec($ch);
-                $this->_saveHtmlPage($url, $response, $save_path);
+                $url_save = $this->save_path . '/' . md5($url) . '.html';
 
-                $this->header_result['all'] = curl_getinfo($ch);
+                if (\Storage::disk('local')->exists($url_save)) {
+                    $response = \Storage::get($url_save);
+                    $this->header_result['http_code'] = '200';
+                } else {
+                    $response = curl_exec($ch);
 
-                $this->header_result['size'] = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-                $this->header_result['head'] = curl_setopt($ch, CURLOPT_HEADER, 1);
-                $this->header_result['header'] = substr($response, 0, $this->header_result['size']);
-//            $this->header_result['body'] = substr($response, $this->header_result['size']);
-                $this->header_result['http_code'] = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                $this->header_result['last_url'] = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-                $redirect = curl_getinfo($ch, CURLINFO_REDIRECT_URL);
-                $this->header_result['redirect_url'] = $redirect ? $redirect : null;
+                    $this->_saveHtmlPage($url, $response, $save_path);
+
+                    $this->header_result['all'] = curl_getinfo($ch);
+
+                    $this->header_result['size'] = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+                    $this->header_result['head'] = curl_setopt($ch, CURLOPT_HEADER, 1);
+                    $this->header_result['header'] = substr($response, 0, $this->header_result['size']);
+                    $this->header_result['http_code'] = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $this->header_result['last_url'] = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+                    $redirect = curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+                    $this->header_result['redirect_url'] = $redirect ? $redirect : null;
+                }
                 $result = $this->header_result;
-
                 curl_close($ch);
             } catch (Exception $e) {
                 echo $e->getMessage();

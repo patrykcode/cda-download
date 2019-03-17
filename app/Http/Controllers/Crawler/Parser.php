@@ -15,92 +15,66 @@ namespace App\Http\Controllers\Crawler;
  */
 class Parser {
 
-    public $html = [];
     public $html_array = [];
+    public $tag = [
+        'name' => 'div',
+        'attrs' => [['player_data' => '\'(.*?)\'']]
+    ];
+    public $data = [];
+    public $qualities = [];
+    public $html = [];
 
     public function __construct($html) {
-        $this->load($html);
-
-        return false;
+        $this->html = $html;
+        $data = $this->getStringData($this->findTag($this->tag));
+        $this->data = $this->decode($data);
+        $this->qualities = $this->findTag([
+            'name' => 'a',
+            'attrs' => [
+                ['data-quality' => '".*?"'],
+                ['href' => '"(.*?)"']
+            ]
+        ]);
+        return $this;
     }
 
-    public function get() {
-        if ($video = $this->getJson(21)) {
-            return $video;
-        }
+    private function decode($string = '') {
+        return json_decode($string, true);
     }
 
-    private function load($html) {
-        try {
-            preg_match_all("/<\w(?:\".*?\"|'.*?'|.*?)*?>/", $html, $this->html);
-            return $this->parse();
-        } catch (\Exception $ex) {
-//            throw new \Exception('error' . $ex->getMessage());
-        }
-    }
-
-    public function getJson($index = null, $array = true) {
-        $element = $this->getDom($index);
-        if (isset($element['div']['attribute']['player_data'][0])) {
-            $json = trim($element['div']['attribute']['player_data'][0], "'");
-            return json_decode($json, $array);
-        }
-        return false;
-    }
-
-    public function getDom($index = null) {
-        return $this->html_array[$index] ?? $this->html_array;
-    }
-
-    public function parse($first = 'html', $i = 0) {
-
-        foreach ($this->html[0] as $tag) {
-            $this->html_array[] = $this->clear($tag);
-        }
-    }
-
-    public function clear($param) {
+    public function getQuality() {
         $array = [];
-        try {
-            preg_match_all("/<([\w]*)\s(.*)>|([\w]*)/", $param, $tmp);
-            if (!empty($tmp[2])) {
-                preg_match_all("/([\w]*)=(\"(.*?)\"|'(.*?)')/", $tmp[2][0], $attr);
-                $tags = trim($tmp[1][0], '"');
-                $array[$tags] = [];
-                foreach ($attr[1] as $key => $row) {
-                    $array[$tags]['attribute'][trim($row, '"')] = explode(' ', trim($attr[2][$key], '"'));
-                }
-            } else {
-                $array[$tags]['attribute'] = [];
+        if (isset($this->qualities[1]) && isset($this->qualities[2])) {
+            foreach ($this->qualities[1] as $key => $quality) {
+                $array[$this->qualities[2][$key]] = $quality;
             }
-        } catch (Exception $ex) {
-            
         }
+
         return $array;
     }
 
-    public function attribute($param) {
-        $attributes = [];
-        if ($param->length) {
-            foreach ($param as $name => $attr) {
-                $attributes[$attr->nodeName] = explode(' ', $attr->value);
-            }
-        }
-        return $attributes;
+    private function getStringData($data) {
+        return isset($data[1][0]) ? $data[1][0] : null;
     }
 
-    public function find($param = '') {
+    public function getData() {
+        return $this->data;
+    }
 
-        preg_match_all("/(?<tag>[\w]{1,})((\[)(?<attr>[\w]*)=\"(?<value>.*)\"(\])){0,}/", $param, $tmp);
-        if (empty($tmp['tag'])) {
-            return [];
+    public function findTag($tag = [], $find = '.*?>(.*?)<') {
+        $match = [];
+        $attrs = '';
+        foreach ($tag['attrs'] as $attr) {
+
+            $k = key($attr);
+
+            $attrs .= $k . '=' . $attr[$k] . '\s*';
         }
-        return array_filter($this->html_array, function($row) use ($tmp) {
-            $tagname = $tmp['tag'][0];
-            $attr = $tmp['attr'][0] ?? null;
-            $value = $tmp['value'][0] ?? null;
-            return isset($row[$tagname]) && isset($row[$tagname]['attribute'][$attr]) && in_array($value, $row[$tagname]['attribute'][$attr]);
-        });
+        $this->regex = '/<' . $tag['name'] . '.*?' . $attrs . $find . '\/' . $tag['name'] . '>/s';
+
+        preg_match_all($this->regex, $this->html, $match);
+//        dd($match);
+        return !empty($match) ? $match : null;
     }
 
 }

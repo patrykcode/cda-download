@@ -42,16 +42,15 @@ function render(data) {
 
     $('.quality').text('');
     for (var i in data) {
-	var href = data[i].a.attribute.href[0];
-	var quality = href.split('?');
-	quality = quality[1] ? quality[1] : '';
+	var href = data[i];
+	var quality = i;
 	var li, a;
 	li = document.createElement('li');
 	a = document.createElement('a');
 	a.onclick = function (e) {
 	    e.preventDefault();
 	    reload();
-	    init('?' + this.getAttribute('qli'));
+	    init('?wersja=' + i);
 	}
 	a.classList = 'btn btn-link';
 	a.setAttribute('qli', quality);

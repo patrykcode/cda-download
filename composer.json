@@ -25,8 +25,7 @@
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",
-        "sort-packages": true,
-        "bin-dir": "./bin/phantomjs/"
+        "sort-packages": true
     },
     "extra": {
         "laravel": {
@@ -43,7 +42,6 @@
             "database/factories"
         ],
         "files" : [
-            "app/Helper/simple_html_dom.php"
         ]
     },
     "autoload-dev": {
@@ -54,12 +52,6 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "scripts": {
-        "post-install-cmd": [
-            "PhantomInstaller\\Installer::installPhantomJS"
-        ],
-        "post-update-cmd": [
-            "PhantomInstaller\\Installer::installPhantomJS"
-        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
